@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rakshak AI </title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/dist/css/all.min.css">
+    <style>
+        :root { --primary: #c1121f; --dark: #023047; --bg: #f8f9fa; --white: #ffffff; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--dark); }
+        
+        /* Navbar */
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 8%; background: var(--white); box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .logo { display: flex; align-items: center; font-weight: 800; font-size: 22px; color: var(--primary); }
+        .logo img { height: 40px; margin-right: 10px; }
+        
+        /* Hero */
+        .hero { text-align: center; padding: 80px 10%; background: linear-gradient(135deg, #000814 0%, #001d3d 100%); color: white; }
+        .hero h1 { font-size: 3.5rem; margin-bottom: 10px; }
+        .hero p { font-size: 1.2rem; opacity: 0.9; margin-bottom: 30px; }
+        
+        /* Features */
+        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; padding: 50px 8%; margin-top: -50px; }
+        .f-card { background: white; padding: 30px; border-radius: 12px; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.05); transition: 0.3s; }
+        .f-card:hover { transform: translateY(-10px); }
+        .f-card i { font-size: 40px; color: var(--primary); margin-bottom: 15px; }
+
+        /* Buttons */
+        .btn { padding: 12px 25px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .btn-red { background: var(--primary); color: white; }
+
+        /* Modals */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; }
+        .modal-content { background: white; width: 400px; margin: 50px auto; padding: 40px; border-radius: 15px; position: relative; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+        .error-msg { color: var(--primary); font-size: 12px; margin-bottom: 10px; display: none; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div class="logo">
+        <img src="/static/logo.png" alt="R"> RAKSHAK AI
+    </div>
+    <div>
+        <button class="btn btn-red" onclick="openModal('loginModal')">Login</button>
+    </div>
+</nav>
+
+<section class="hero">
+    <h1>Intelligent Disaster Management</h1>
+    <p>An AI-driven system designed to identify, analyze, and map disasters in real time, enabling quicker response and improved public safety.</p>
+    <button class="btn btn-red" onclick="openModal('signupModal')">Join the Network</button>
+</section>
+
+<div class="features">
+    <div class="f-card">
+        <i class="fas fa-map-marked-alt"></i>
+        <h3>Live Mapping</h3>
+        <p>View disaster locations and nearby safe areas in real time.</p>
+    </div>
+
+    <div class="f-card">
+        <i class="fas fa-chart-line"></i>
+        <h3>Severity Engine</h3>
+        <p>Understand how serious the situation is instantly.</p>
+    </div>
+
+    <div class="f-card">
+        <i class="fas fa-robot"></i>
+        <h3>AI Chatbot</h3>
+        <p>Get quick safety tips and guidance anytime.</p>
+    </div>
+
+    <div class="f-card">
+        <i class="fas fa-link"></i>
+        <h3>URL Analysis</h3>
+        <p>Analyze news links to extract important disaster information.</p>
+    </div>
+</div>
+
+<div id="loginModal" class="modal">
+    <div class="modal-content">
+        <h2>Login</h2>
+        <input type="email" id="lEmail" placeholder="Email ID" required>
+        <input type="password" id="lPass" placeholder="Password" required>
+        <button class="btn btn-red" style="width:100%" onclick="auth('login')">Login</button>
+        <p style="text-align:center; margin-top:15px; cursor:pointer" onclick="closeModal('loginModal')">Close</p>
+    </div>
+</div>
+
+<div id="signupModal" class="modal">
+    <div class="modal-content">
+        <h2>Sign Up</h2>
+        <p id="signupError" class="error-msg"></p>
+        <input type="text" id="sName" placeholder="Full Name" required>
+        <input type="email" id="sEmail" placeholder="Email ID" required>
+        <input type="tel" id="sPhone" placeholder="Phone No (with country code)" required>
+        <input type="password" id="sPass" placeholder="Password (Min 8 characters)" required>
+        <input type="text" id="sLoc" placeholder="Your City" required>
+        <button class="btn btn-red" id="signupBtn" style="width:100%" onclick="auth('signup')">Create Account</button>
+        <p style="text-align:center; margin-top:15px; cursor:pointer" onclick="closeModal('signupModal')">Close</p>
+    </div>
+</div>
+
+<script>
+    function openModal(id) { document.getElementById(id).style.display = 'block'; }
+    function closeModal(id) { 
+        document.getElementById(id).style.display = 'none'; 
+        if(id === 'signupModal') document.getElementById('signupError').style.display = 'none';
+    }
+
+    async function auth(type) {
+        const url = type === 'login' ? '/login' : '/signup';
+        const payload = type === 'login' 
+            ? { email: document.getElementById('lEmail').value, password: document.getElementById('lPass').value }
+            : { 
+                name: document.getElementById('sName').value, 
+                email: document.getElementById('sEmail').value, 
+                phone: document.getElementById('sPhone').value,
+                password: document.getElementById('sPass').value, 
+                location: document.getElementById('sLoc').value 
+              };
+
+        if (type === 'signup') {
+            if (payload.password.length < 8) {
+                showError("Password must be at least 8 characters.");
+                return;
+            }
+            document.getElementById('signupBtn').innerText = "Processing...";
+        }
+
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+            
+            if (result.status === 'success') {
+                if (type === 'login') window.location.href = result.redirect;
+                else { alert(result.message); closeModal('signupModal'); }
+            } else {
+                if (type === 'signup') showError(result.message);
+                else alert(result.message);
+            }
+        } catch (err) {
+            alert("Connection error.");
+        } finally {
+            if (type === 'signup') document.getElementById('signupBtn').innerText = "Create Account";
+        }
+    }
+
+    function showError(msg) {
+        const errorField = document.getElementById('signupError');
+        errorField.innerText = msg;
+        errorField.style.display = 'block';
+    }
+</script>
+</body>
+</html>

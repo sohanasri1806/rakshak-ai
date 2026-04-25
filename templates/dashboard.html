@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Rakshak AI | Live Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/dist/css/all.min.css">
+    <style>
+        :root { --primary: #c1121f; --dark: #000814; --white: #ffffff; --bg: #f1f5f9; }
+        body { margin: 0; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; height: 100vh; background: var(--bg); overflow: hidden; }
+        
+        /* Navigation */
+        .top-nav { background: var(--dark); color: white; display: flex; justify-content: space-between; align-items: center; padding: 0 5%; height: 65px; z-index: 1000; }
+        .tabs { display: flex; height: 100%; gap: 10px; }
+        .tab { padding: 0 20px; display: flex; align-items: center; cursor: pointer; color: #94a3b8; font-weight: 600; position: relative; font-size: 14px; }
+        .tab.active { color: white; }
+        .tab.active::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 4px; background: var(--primary); }
+
+        /* Layout */
+        .main-container { display: flex; flex: 1; overflow: hidden; }
+        .sidebar { width: 320px; background: white; border-right: 1px solid #e2e8f0; padding: 20px; display: flex; flex-direction: column; }
+        .content-area { flex: 1; position: relative; display: none; }
+        .content-area.active { display: block; }
+
+        /* Maps */
+        #map, #safeMap { height: 100%; width: 100%; }
+        .map-filters { position: absolute; top: 15px; right: 15px; z-index: 1000; display: flex; gap: 8px; }
+        .f-btn { background: white; border: 1px solid #ddd; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        .f-btn.active { background: var(--primary); color: white; }
+        
+        .map-legend { position: absolute; bottom: 20px; right: 20px; z-index: 1000; background: white; padding: 12px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); font-size: 12px; min-width: 140px; }
+        .legend-item { display: flex; align-items: center; margin-bottom: 5px; }
+        .legend-color { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; border: 1px solid #eee; }
+
+        /* Sidebar & Result Cards */
+        .sim-btn { background: var(--primary); color: white; border: none; padding: 12px; border-radius: 6px; font-weight: bold; cursor: pointer; width: 100%; margin-bottom: 20px; }
+        #msgList { flex: 1; overflow-y: auto; }
+        .msg-box { background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #cbd5e1; font-size: 12px; }
+        .msg-box.disaster { border-left-color: var(--primary); background: #fff1f2; }
+        .result-card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-top: 20px; text-align: left; }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 15px; }
+        .info-box { background: #f8fafc; padding: 10px; border-radius: 6px; border: 1px solid #e2e8f0; }
+        .info-box b { font-size: 10px; color: #64748b; text-transform: uppercase; }
+        .info-box span { display: block; font-weight: bold; font-size: 14px; }
+        .guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 15px; }
+        .guide-col { background: #fcfcfc; padding: 10px; border-radius: 8px; border: 1px solid #eee; font-size: 11px; }
+
+        /* Floating Chatbot */
+        .chat-icon { position: fixed; bottom: 30px; right: 30px; background: var(--primary); color: white; width: 60px; height: 60px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 2000; }
+        .chat-window { position: fixed; bottom: 100px; right: 30px; width: 350px; height: 450px; background: white; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.2); display: none; flex-direction: column; z-index: 2000; overflow: hidden; }
+        .chat-header { background: var(--primary); color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; }
+        .chat-messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background: #f8f9fa; }
+        .message { padding: 8px 12px; border-radius: 10px; max-width: 80%; font-size: 13px; }
+        .user-msg { align-self: flex-end; background: var(--primary); color: white; }
+        .bot-msg { align-self: flex-start; background: #e2e8f0; color: var(--dark); }
+        .chat-footer { padding: 10px; display: flex; gap: 5px; border-top: 1px solid #eee; }
+        .chat-footer input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px; outline: none; }
+        .send-btn { background: var(--primary); color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <nav class="top-nav">
+        <div style="font-weight: 800; color: var(--primary); font-size: 20px;">RAKSHAK AI</div>
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab(this, 'tab-dash')">Dashboard</div>
+            <div class="tab" onclick="switchTab(this, 'tab-analyze')">Analyze Article</div>
+            <div class="tab" onclick="switchTab(this, 'tab-safe')">Safe Places</div>
+        </div>
+        <div style="font-size: 13px; color: #94a3b8;">
+            Hello, <b>{{ name }}</b> 
+            <a href="/logout" style="color:white; margin-left:15px; text-decoration:none;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div id="tab-dash" class="content-area active" style="display: flex; width: 100%;">
+            <div class="sidebar">
+                <button class="sim-btn" onclick="runSimulation()"><i class="fas fa-satellite-dish"></i> Simulate 10 Messages</button>
+                <div id="msgList"></div>
+            </div>
+            <div style="flex:1; position:relative;">
+                <div class="map-filters">
+                    <button class="f-btn active" id="fType" onclick="setFilter('type')">By Type</button>
+                    <button class="f-btn" id="fSev" onclick="setFilter('severity')">By Severity</button>
+                </div>
+                <div id="map"></div>
+                <div id="mapLegend" class="map-legend">
+                    <b id="legendTitle" style="display:block; margin-bottom:8px;">Legend</b>
+                    <div id="legendItems"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-analyze" class="content-area" style="padding: 50px 10%;">
+            <div style="background: white; padding: 40px; border-radius: 15px; text-align: center;">
+                <h2>Analyze News Article</h2>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <input type="text" id="urlInput" placeholder="Paste URL here..." style="flex:1; padding: 15px; border-radius: 8px; border: 1px solid #ddd;">
+                    <button onclick="analyzeUrl()" class="sim-btn" style="width:auto; padding: 0 40px; margin-bottom:0;">Analyze</button>
+                </div>
+                <div id="urlResults"></div>
+            </div>
+        </div>
+
+        <div id="tab-safe" class="content-area" style="width: 100%; height: 100%;">
+            <div style="position: absolute; top: 15px; left: 70px; z-index: 1000; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <h4 style="margin:0; color: var(--primary);"><i class="fas fa-location-crosshairs"></i> Live Emergency Map</h4>
+                <small id="locStatus">Requesting GPS access...</small>
+            </div>
+
+            <div id="safeMap"></div>
+            <div id="safeMapLegend" class="map-legend" style="display: none; bottom: 30px; left: 20px; right: auto; min-width: 160px; pointer-events: none;">
+    <b style="display:block; margin-bottom:10px; color: var(--dark);"><i class="fas fa-list-ul"></i> Service Legend</b>
+    
+    <div class="legend-item">
+        <div class="legend-color" style="background: #023047; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.3);"></div>
+        <span style="font-weight: bold; color: #023047;">Your Location</span>
+    </div>
+    
+    <div style="border-top: 1px solid #eee; margin: 10px 0;"></div> <div class="legend-item">
+        <div class="legend-color" style="background: #c1121f;"></div>
+        <span>Hospital / Medical</span>
+    </div>
+    
+    <div class="legend-item">
+        <div class="legend-color" style="background: #2980b9;"></div>
+        <span>Fire Station</span>
+    </div>
+    
+    <div class="legend-item">
+        <div class="legend-color" style="background: #27ae60;"></div>
+        <span>Emergency Shelter</span>
+    </div>
+</div>
+        </div>
+    </div>
+
+<!-- Chat Icon with Image -->
+<div class="chat-icon" onclick="toggleChat()">
+    <img src="static/chatbotpic.jpeg" alt="Chatbot" width="50" height="50" style="border-radius:50%;">
+</div>
+
+<!-- Chat Window -->
+<div class="chat-window" id="chatWindow" style="display:none;">
+    
+    <!-- Header with bot image -->
+    <div class="chat-header">
+        <img src="static/chatbotpic.jpeg" alt="Bot" width="30" height="30" style="border-radius:50%; margin-right:10px;">
+        <span>Disaster AI Assistant</span>
+        <i class="fas fa-times" onclick="toggleChat()" style="cursor:pointer; float:right;"></i>
+    </div>
+
+    <!-- Messages -->
+    <div class="chat-messages" id="chatMsgs">
+        <div class="message bot-msg">
+            <img src="static/chatbotpic.jpeg" width="25" style="border-radius:50%; vertical-align:middle;">
+            Hello! Ask me any safety questions.
+        </div>
+    </div>
+    <!-- Footer -->
+    <div class="chat-footer">
+        <input type="text" id="chatInput" placeholder="How to survive?" onkeypress="handleKeyPress(event)">
+        <button class="send-btn" onclick="sendChatMessage()">
+            <i class="fas fa-paper-plane"></i> Send
+        </button>
+    </div>
+</div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // --- TAB MANAGEMENT (CORRECTED) ---
+       function switchTab(el, id) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.content-area').forEach(c => {
+        c.classList.remove('active');
+        c.style.display = 'none';
+    });
+
+    el.classList.add('active');
+    const target = document.getElementById(id);
+    target.classList.add('active');
+    
+    // Legend Management
+    const safeLegend = document.getElementById('safeMapLegend');
+    const dashLegend = document.getElementById('mapLegend'); // The original dashboard legend
+
+    if (id === 'tab-dash') {
+        target.style.display = 'flex';
+        if(safeLegend) safeLegend.style.display = 'none'; // Hide safe legend
+        if(dashLegend) dashLegend.style.display = 'block'; // Show dash legend
+        map.invalidateSize();
+    } else if (id === 'tab-safe') {
+        target.style.display = 'block';
+        if(dashLegend) dashLegend.style.display = 'none'; // Hide dash legend
+        // Show safe legend only after coordinates are found (done in loadSafePlaces)
+        setTimeout(() => {
+            if(safeMap) safeMap.invalidateSize();
+            loadSafePlaces(); 
+        }, 300);
+    } else {
+        target.style.display = 'block';
+        if(safeLegend) safeLegend.style.display = 'none';
+        if(dashLegend) dashLegend.style.display = 'none';
+    }
+}
+
+        // --- MAP 1: DISASTER DASHBOARD ---
+        const map = L.map('map').setView([20.59, 78.96], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+        let activeFilter = 'type';
+        let disasterData = [];
+        let markers = [];
+        const colors = {
+            type: { "Earthquake": "#8e44ad", "Flood": "#2980b9", "Hurricane": "#16a085", "Tornado": "#f39c12", "Wildfire": "#d35400" },
+            severity: { "Minor": "#2ecc71", "Moderate": "#f1c40f", "Severe": "#e67e22", "Catastrophic": "#e74c3c" }
+        };
+        const disasterIcons = { "Earthquake": "fa-house-crack", "Flood": "fa-house-flood-water", "Hurricane": "fa-hurricane", "Tornado": "fa-tornado", "Wildfire": "fa-fire-flame-curved" };
+
+        // --- MAP 2: SAFE PLACES LOGIC ---
+        let safeMap;
+        let safeMarkers = [];
+
+        async function loadSafePlaces() {
+    const status = document.getElementById('locStatus');
+    const safeLegend = document.getElementById('safeMapLegend');
+
+    const fetchAndPlot = async (lat = null, lng = null) => {
+        status.innerText = lat ? "Fetching real-time safe places..." : "Using profile location...";
+        
+        try {
+            const res = await fetch('/api/nearby_safe_places', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ lat, lng })
+            });
+            const result = await res.json();
+
+            if (result.status === 'success') {
+                const center = result.center;
+                
+                // Initialize or Re-center Map
+                if (!safeMap) {
+                    safeMap = L.map('safeMap').setView(center, 14);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(safeMap);
+                } else {
+                    safeMap.setView(center, 14);
+                }
+
+                // Clear existing markers
+                safeMarkers.forEach(m => safeMap.removeLayer(m));
+                safeMarkers = [];
+
+                // 1. Add User Location Marker (Dark Blue as per Legend)
+                const userIcon = L.divIcon({
+                    html: `<div style="background: #023047; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);">
+                            <i class="fa-solid fa-person-rays"></i></div>`,
+                    className: 'custom-icon', iconSize: [30, 30]
+                });
+                const userMarker = L.marker(center, { icon: userIcon }).addTo(safeMap).bindPopup("<b>Your Location</b>").openPopup();
+                safeMarkers.push(userMarker);
+
+                // 2. Plot nearby facilities with color logic
+                result.places.forEach(place => {
+                    const typeLower = place.type.toLowerCase();
+                    let color, icon;
+
+                    // Logic to match the Legend
+                    if (typeLower.includes('hospital')) {
+                        color = '#c1121f'; // Red
+                        icon = 'fa-hospital';
+                    } else if (typeLower.includes('fire')) {
+                        color = '#2980b9'; // Blue
+                        icon = 'fa-fire-extinguisher';
+                    } else {
+                        color = '#27ae60'; // Green
+                        icon = 'fa-tent';
+                    }
+
+                    const sIcon = L.divIcon({
+                        html: `<div style="background: ${color}; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 2px solid white;">
+                                <i class="fa-solid ${icon}"></i></div>`,
+                        className: 'custom-icon', iconSize: [30, 30]
+                    });
+
+                    const m = L.marker([place.lat, place.lng], { icon: sIcon })
+                              .addTo(safeMap)
+                              .bindPopup(`<b>${place.name}</b><br>${place.type}`);
+                    safeMarkers.push(m);
+                });
+
+                // Show the legend once data is loaded
+                if(safeLegend) safeLegend.style.display = 'block';
+                status.innerText = `Found ${result.places.length} nearby facilities.`;
+
+            } else {
+                status.innerText = "Error: " + result.message;
+            }
+        } catch (e) { 
+            status.innerText = "Error fetching data."; 
+            console.error(e);
+        }
+    };
+
+    // Geolocation Trigger
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => fetchAndPlot(pos.coords.latitude, pos.coords.longitude),
+            (err) => {
+                console.warn("GPS Access Denied, falling back to profile.");
+                fetchAndPlot(); 
+            }
+        );
+    } else {
+        fetchAndPlot(); 
+    }
+}
+
+        // --- SIMULATION & ARTICLE ANALYSIS ---
+        async function runSimulation() {
+            const res = await fetch('/api/simulate');
+            const data = await res.json();
+            const list = document.getElementById('msgList');
+            data.forEach(item => {
+                const div = document.createElement('div');
+                div.className = `msg-box ${item.disaster ? 'disaster' : ''}`;
+                div.innerHTML = `<b>${item.location || 'Observation'}</b><br>${item.message}`;
+                list.prepend(div);
+                if(item.disaster) disasterData.push(item);
+            });
+            renderMarkers();
+        }
+
+        // --- UPDATED DASHBOARD MARKERS ---
+function renderMarkers() {
+    markers.forEach(m => map.removeLayer(m));
+    markers = [];
+
+    disasterData.forEach(item => {
+        const color = activeFilter === 'type' ? (colors.type[item.type] || '#333') : (colors.severity[item.severity] || '#333');
+        const iconName = disasterIcons[item.type] || "fa-triangle-exclamation";
+
+        const customIcon = L.divIcon({
+            html: `<div style="background: ${color}; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                    <i class="fa-solid ${iconName}" style="font-size: 12px;"></i></div>`,
+            className: 'custom-icon', iconSize: [30, 30], iconAnchor: [15, 15]
+        });
+
+        const marker = L.marker([item.lat, item.lng], { icon: customIcon }).addTo(map);
+        
+        // --- ADDED DETAILED TOOLTIP ---
+        const tooltipContent = `
+            <div style="font-family: 'Inter', sans-serif; padding: 5px; min-width: 150px;">
+                <b style="color: ${color}; font-size: 14px;">${item.type}</b><br>
+                <hr style="margin: 5px 0; border: 0; border-top: 1px solid #eee;">
+                <b>⚠️ Severity:</b> ${item.severity}<br>
+                <b>🎯 Confidence:</b> ${Math.round(item.confidence * 100)}%<br>
+                <b>📍 Location:</b> ${item.location}<br>
+                <div style="margin-top: 8px; font-style: italic; color: #666; font-size: 11px; background: #f9f9f9; padding: 5px; border-radius: 4px;">
+                    "${item.message}"
+                </div>
+            </div>
+        `;
+
+        marker.bindTooltip(tooltipContent, { sticky: true, opacity: 0.95 });
+        markers.push(marker);
+    });
+    updateLegend();
+}
+
+// --- UPDATED SAFE PLACES LOGIC ---
+async function loadSafePlaces() {
+    const status = document.getElementById('locStatus');
+    const safeLegend = document.getElementById('safeMapLegend');
+
+    const fetchAndPlot = async (lat = null, lng = null) => {
+        status.innerText = lat ? "Fetching real-time safe places..." : "Using profile location...";
+        
+        try {
+            const res = await fetch('/api/nearby_safe_places', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ lat, lng })
+            });
+            const result = await res.json();
+
+            if (result.status === 'success') {
+                const center = result.center;
+                
+                if (!safeMap) {
+                    safeMap = L.map('safeMap').setView(center, 14);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(safeMap);
+                } else {
+                    safeMap.setView(center, 14);
+                }
+
+                safeMarkers.forEach(m => safeMap.removeLayer(m));
+                safeMarkers = [];
+
+                const userIcon = L.divIcon({
+                    html: `<div style="background: #023047; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);">
+                            <i class="fa-solid fa-person-rays"></i></div>`,
+                    className: 'custom-icon', iconSize: [30, 30]
+                });
+                const userMarker = L.marker(center, { icon: userIcon }).addTo(safeMap).bindPopup("<b>Your Location</b>").openPopup();
+                safeMarkers.push(userMarker);
+
+                result.places.forEach(place => {
+                    const typeLower = place.type.toLowerCase();
+                    let color, icon;
+
+                    if (typeLower.includes('hospital')) {
+                        color = '#c1121f'; icon = 'fa-hospital';
+                    } else if (typeLower.includes('fire')) {
+                        color = '#2980b9'; icon = 'fa-fire-extinguisher';
+                    } else {
+                        color = '#27ae60'; icon = 'fa-tent';
+                    }
+
+                    const sIcon = L.divIcon({
+                        html: `<div style="background: ${color}; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; border: 2px solid white;">
+                                <i class="fa-solid ${icon}"></i></div>`,
+                        className: 'custom-icon', iconSize: [30, 30]
+                    });
+
+                    const m = L.marker([place.lat, place.lng], { icon: sIcon }).addTo(safeMap);
+                    
+                    // Tooltip for safe places
+                    m.bindTooltip(`<b>${place.name}</b><br>${place.type}`, { direction: 'top' });
+                    safeMarkers.push(m);
+                });
+
+                if(safeLegend) safeLegend.style.display = 'block';
+                status.innerText = result.note ? result.note : `Found ${result.places.length} nearby facilities.`;
+
+            } else {
+                status.innerText = "Error: " + result.message;
+            }
+        } catch (e) { 
+            status.innerText = "Error fetching data."; 
+            console.error(e);
+        }
+    };
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => fetchAndPlot(pos.coords.latitude, pos.coords.longitude),
+            (err) => { fetchAndPlot(); }
+        );
+    } else {
+        fetchAndPlot(); 
+    }
+}
+        function setFilter(f) {
+            activeFilter = f;
+            document.getElementById('fType').classList.toggle('active', f==='type');
+            document.getElementById('fSev').classList.toggle('active', f==='severity');
+            renderMarkers();
+        }
+
+        function updateLegend() {
+            const items = document.getElementById('legendItems');
+            const title = document.getElementById('legendTitle');
+            items.innerHTML = "";
+            const activeSet = activeFilter === 'type' ? colors.type : colors.severity;
+            title.innerText = activeFilter === 'type' ? "Disaster Types" : "Severity Levels";
+            for (let key in activeSet) {
+                items.innerHTML += `<div class="legend-item"><div class="legend-color" style="background: ${activeSet[key]}"></div><span>${key}</span></div>`;
+            }
+        }
+
+        async function analyzeUrl() {
+    const url = document.getElementById('urlInput').value.trim();
+    const container = document.getElementById('urlResults');
+    if(!url) return alert("Enter a URL");
+
+    container.innerHTML = "<p><i class='fas fa-spinner fa-spin'></i> Analyzing...</p>";
+
+    const res = await fetch('/api/analyze_url', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ url })
+    });
+    const result = await res.json();
+    
+    if (result.status === 'success') {
+        const d = result.data;
+        let gHtml = "";
+        
+        // --- UPDATED GUIDELINES SECTION WITH INCREASED FONT SIZE ---
+        if(d.guidelines) {
+            gHtml = `
+                <div style="margin-top:25px; border-top: 2px solid #eee; padding-top:20px;">
+                    <h3 style="color: var(--primary); font-size: 18px; margin-bottom:15px; text-align:left;">
+                        <i class="fas fa-shield-heart"></i> Safety Guidelines for ${d.type}
+                    </h3>
+                    <div class="guide-grid">
+                        <div class="guide-col" style="padding: 15px;">
+                            <b style="font-size: 18px; color: var(--dark); display:block; margin-bottom:8px;">Before</b>
+                            <ul style="font-size: 14px; line-height: 1.2; padding-left: 20px;">
+                                ${d.guidelines.before.map(i=>`<li>${i}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="guide-col" style="padding: 15px;">
+                            <b style="font-size: 18px; color: var(--dark); display:block; margin-bottom:8px;">During</b>
+                            <ul style="font-size: 14px; line-height: 1.2; padding-left: 20px;">
+                                ${d.guidelines.during.map(i=>`<li>${i}</li>`).join('')}
+                            </ul>
+                        </div>
+                        <div class="guide-col" style="padding: 15px;">
+                            <b style="font-size: 18px; color: var(--dark); display:block; margin-bottom:8px;">After</b>
+                            <ul style="font-size: 14px; line-height: 1.2; padding-left: 20px;">
+                                ${d.guidelines.after.map(i=>`<li>${i}</li>`).join('')}
+                            </ul>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        container.innerHTML = `
+            <div class="result-card" style="border-left: 8px solid ${d.disaster ? 'var(--primary)' : '#27ae60'}">
+                <h3 style="font-size: 20px;">${d.disaster ? '🚨 Disaster Detected' : '✅ Safe / No Disaster'}</h3>
+                <div class="grid-4">
+                    <div class="info-box"><b>Type</b><span>${d.type || 'N/A'}</span></div>
+                    <div class="info-box"><b>Severity</b><span>${d.severity || 'N/A'}</span></div>
+                    <div class="info-box"><b>Location</b><span>${d.location || 'N/A'}</span></div>
+                    <div class="info-box"><b>Confidence</b><span>${Math.round(d.confidence*100)}%</span></div>
+                </div>
+                ${gHtml}
+            </div>`;
+    } else {
+        container.innerHTML = `<p style="color:red">Error: ${result.message}</p>`;
+    }
+}
+        // --- CHATBOT ---
+        function toggleChat() {
+            const win = document.getElementById('chatWindow');
+            win.style.display = (win.style.display === 'flex') ? 'none' : 'flex';
+        }
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const msgArea = document.getElementById('chatMsgs');
+            const text = input.value.trim();
+            if (!text) return;
+            msgArea.innerHTML += `<div class="message user-msg">${text}</div>`;
+            input.value = "";
+            const typing = document.createElement('div');
+            typing.className = "message bot-msg"; typing.innerText = "...";
+            msgArea.appendChild(typing);
+            msgArea.scrollTop = msgArea.scrollHeight;
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+            });
+            const data = await res.json();
+            typing.innerText = data.reply;
+            msgArea.scrollTop = msgArea.scrollHeight;
+        }
+        function handleKeyPress(event) {
+            if (event.key === "Enter") {
+                event.preventDefault(); // prevents page reload
+                sendChatMessage();
+            }
+        }
+        updateLegend();
+    </script>
+</body>
+</html>
