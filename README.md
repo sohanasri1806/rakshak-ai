@@ -289,8 +289,7 @@ G. Rishika
 <img width="284" height="416" alt="image" src="https://github.com/user-attachments/assets/8d0f1b6f-2035-489d-aaa7-a3446e0dc8db" />
 <img width="564" height="283" alt="image" src="https://github.com/user-attachments/assets/5dcbce4c-f99b-435e-b20b-19ceb1482f50" />
 <img width="394" height="563" alt="image" src="https://github.com/user-attachments/assets/d561e0e4-dfc5-46c4-9b3b-7c0b243cb1ac" />
-
-
+<img width="1154" height="777" alt="image" src="https://github.com/user-attachments/assets/65c44ae7-9b81-434c-87f0-973fd87f317b" />
 
 
 
