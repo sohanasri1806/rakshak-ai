@@ -280,6 +280,21 @@ G. Rishika
 
 ---
 
-## License
+## Screenshots
+<img width="574" height="237" alt="image" src="https://github.com/user-attachments/assets/83f009ad-a749-4112-a771-a340795ce6a4" />
+<img width="332" height="265" alt="image" src="https://github.com/user-attachments/assets/eec070ed-1741-488c-a52c-7bfb32da1b35" />
+<img width="563" height="278" alt="image" src="https://github.com/user-attachments/assets/fb7c37d2-79a6-4802-aea4-2b787a02051a" />
+<img width="563" height="266" alt="image" src="https://github.com/user-attachments/assets/74750738-4338-4b97-b2df-580a91d5bcfd" />
+<img width="555" height="258" alt="image" src="https://github.com/user-attachments/assets/db4b6eed-c117-4f88-b177-76a0de0ad9cc" />
+<img width="284" height="416" alt="image" src="https://github.com/user-attachments/assets/8d0f1b6f-2035-489d-aaa7-a3446e0dc8db" />
+<img width="564" height="283" alt="image" src="https://github.com/user-attachments/assets/5dcbce4c-f99b-435e-b20b-19ceb1482f50" />
+<img width="394" height="563" alt="image" src="https://github.com/user-attachments/assets/d561e0e4-dfc5-46c4-9b3b-7c0b243cb1ac" />
 
-This project is developed for academic and research purposes.
+
+
+
+
+
+
+
+
